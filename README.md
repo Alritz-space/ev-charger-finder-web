@@ -42,6 +42,22 @@ The country dropdown appears immediately from `countries.js`. When the larger
 station CSV later loads for recommendations, the app can refresh the dropdown
 from the live Sheet data without blocking Step 1.
 
+## Weekly country-list refresh
+
+The repository includes a GitHub Actions workflow:
+
+```text
+.github/workflows/update-countries.yml
+```
+
+It runs every Sunday at **11:00 PM IST** and updates `countries.js` plus
+`countries.json` from the published Google Sheet CSV. You can also run it
+manually from GitHub:
+
+```text
+Actions > Update country list > Run workflow
+```
+
 ## Configure Google Sheet URL
 
 Edit `config.js` when your published Sheet URL changes:
@@ -69,9 +85,12 @@ Upload these files to the root of a GitHub repository:
 - `app.js`
 - `config.js`
 - `countries.js`
+- `countries.json`
 - `package.json`
 - `README.md`
 - `DATABASE_UPDATE.md`
+- `.github/workflows/update-countries.yml`
+- `scripts/update-countries-from-sheet.mjs`
 
 Then open repository **Settings > Pages**, choose **Deploy from a branch**,
 select `main` and `/root`, then click **Save**.

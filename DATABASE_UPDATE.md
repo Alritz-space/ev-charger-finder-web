@@ -23,6 +23,24 @@ live Sheet without blocking Step 1.
 If you add a brand-new country and want it to appear immediately on first page
 load, also add that country name to `countries.js`.
 
+## Automatic weekly country update
+
+GitHub Actions can refresh `countries.js` and `countries.json` automatically
+from the published Google Sheet CSV every Sunday at **11:00 PM IST**.
+
+Required files in your GitHub repository:
+
+```text
+.github/workflows/update-countries.yml
+scripts/update-countries-from-sheet.mjs
+```
+
+The workflow can also be run manually from:
+
+```text
+Actions > Update country list > Run workflow
+```
+
 Your current CSV URL:
 
 ```text
