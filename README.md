@@ -94,3 +94,15 @@ Upload these files to the root of a GitHub repository:
 
 Then open repository **Settings > Pages**, choose **Deploy from a branch**,
 select `main` and `/root`, then click **Save**.
+
+For your repository:
+
+```text
+https://github.com/Alritz-space/ev-charger-finder-web
+```
+
+the expected public GitHub Pages country file URL is:
+
+```text
+https://alritz-space.github.io/ev-charger-finder-web/countries.json
+```

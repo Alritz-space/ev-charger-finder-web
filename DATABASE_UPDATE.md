@@ -41,6 +41,12 @@ The workflow can also be run manually from:
 Actions > Update country list > Run workflow
 ```
 
+For your repository, the public country JSON URL should be:
+
+```text
+https://alritz-space.github.io/ev-charger-finder-web/countries.json
+```
+
 Your current CSV URL:
 
 ```text
