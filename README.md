@@ -5,7 +5,7 @@ Responsive browser version of the EV Charger Finder MVP.
 ## What is included
 
 - Email, first name, and country onboarding.
-- Country selection using a dropdown populated from the live station Sheet.
+- Country selection using a fast bundled country list generated from the station Sheet.
 - Optional vehicle and address profile fields.
 - Current-location search using browser geolocation.
 - Country-based fallback suggestions.
@@ -38,8 +38,9 @@ http://localhost:5174
 ```
 
 If `GOOGLE_SHEET_CSV_URL` is empty or the Sheet is not public, the app will not show charging-station results.
-The country dropdown is also built from the same Sheet, so newly added station
-countries appear automatically after the published CSV refreshes.
+The country dropdown appears immediately from `countries.js`. When the larger
+station CSV later loads for recommendations, the app can refresh the dropdown
+from the live Sheet data without blocking Step 1.
 
 ## Configure Google Sheet URL
 
@@ -67,6 +68,7 @@ Upload these files to the root of a GitHub repository:
 - `styles.css`
 - `app.js`
 - `config.js`
+- `countries.js`
 - `package.json`
 - `README.md`
 - `DATABASE_UPDATE.md`

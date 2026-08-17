@@ -29,7 +29,11 @@ let stationCache = null;
 let stations = [];
 let selectedStation = null;
 
-const fallbackCountries = [
+const bundledCountries = Array.isArray(window.EV_CHARGER_COUNTRIES)
+  ? window.EV_CHARGER_COUNTRIES
+  : [];
+
+const fallbackCountries = bundledCountries.length ? bundledCountries : [
   "India",
   "United States",
   "Canada",
@@ -153,6 +157,12 @@ async function loadSheetStations() {
   stationCache = rawStations
     .map(normalizeStation)
     .filter((station) => Number.isFinite(station.latitude) && Number.isFinite(station.longitude));
+
+  setApiStatus(true, `${stationCache.length} sheet rows`);
+  renderCountryDropdown(
+    uniqueCountriesFromStations(stationCache),
+    elements.countrySelect.value || currentProfile?.country || ""
+  );
 
   return stationCache;
 }
@@ -436,24 +446,13 @@ elements.useLocationButton.addEventListener("click", useCurrentLocation);
 async function boot() {
   const savedCountry = currentProfile?.country || "";
   renderCountryDropdown(fallbackCountries, savedCountry);
-
-  try {
-    const loadedStations = await loadSheetStations();
-    setApiStatus(true, `${loadedStations.length} sheet rows`);
-    renderCountryDropdown(uniqueCountriesFromStations(loadedStations), elements.countrySelect.value || savedCountry);
-  } catch (error) {
-    setApiStatus(false, "Sheet unavailable");
-    setProfileMessage(error.message, true);
-  }
+  setApiStatus(Boolean(googleSheetCsvUrl), googleSheetCsvUrl ? "Ready" : "Sheet unavailable");
 
   fillProfileForm(currentProfile);
   if (currentProfile?.email) {
     showFinder();
-    try {
-      await loadCountrySuggestions();
-    } catch (error) {
-      setMessage(error.message, true);
-    }
+    setMessage("Ready. Use your location or browse suggestions when you want to load station results.");
+    renderStationList();
   }
 }
 

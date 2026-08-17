@@ -15,9 +15,13 @@ To update station data:
 3. Keep the Sheet published to web as CSV.
 4. Refresh the GitHub Pages website.
 
-The onboarding country dropdown is generated automatically from the unique
-values in the `country` column. If a country does not appear, make sure at least
-one station row uses that country name and wait for the published CSV to refresh.
+The onboarding country dropdown appears immediately from `countries.js`, which
+contains the country names generated from the station data. When the larger CSV
+loads for station recommendations, the app can refresh the dropdown from the
+live Sheet without blocking Step 1.
+
+If you add a brand-new country and want it to appear immediately on first page
+load, also add that country name to `countries.js`.
 
 Your current CSV URL:
 
