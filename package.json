@@ -1,0 +1,10 @@
+{
+  "name": "ev-charger-finder-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Responsive web app for finding EV charging stations by current location or country suggestions.",
+  "scripts": {
+    "start": "python3 -m http.server 5174",
+    "check": "node --check app.js"
+  }
+}

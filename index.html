@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Find nearby EV charging stations from your browser using location or country-based suggestions."
+    />
+    <title>EV Charger Finder Web</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero-card" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">EV Charger Finder</p>
+          <h1 id="page-title">Find a charging station near you</h1>
+          <p class="hero-copy">
+            Use your current location for the closest charging station, or browse
+            suggestions from your selected country. Built to work cleanly on both
+            desktop and mobile browsers.
+          </p>
+        </div>
+        <div class="hero-badge" aria-label="Demo status">
+          <span id="apiStatusDot" class="status-dot"></span>
+          <span id="apiStatusText">Checking API</span>
+        </div>
+      </section>
+
+      <section id="onboardingSection" class="panel" aria-labelledby="profile-title">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Step 1</p>
+            <h2 id="profile-title">Create your EV profile</h2>
+          </div>
+          <p class="subtle">Only email, first name, and country are required.</p>
+        </div>
+
+        <form id="profileForm" class="profile-form">
+          <label>
+            Email
+            <input id="email" name="email" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            First name
+            <input id="firstName" name="firstName" type="text" autocomplete="given-name" required />
+          </label>
+          <label>
+            Country
+            <input id="country" name="country" type="text" autocomplete="country-name" value="India" required />
+          </label>
+
+          <details class="optional-fields">
+            <summary>Add vehicle and address details</summary>
+            <div class="optional-grid">
+              <label>
+                Vehicle type
+                <select id="vehicleKind" name="vehicleKind">
+                  <option value="Unknown">Select later</option>
+                  <option value="2W">2 Wheeler</option>
+                  <option value="4W">4 Wheeler</option>
+                  <option value="Both 2W & 4W">Both 2W & 4W</option>
+                </select>
+              </label>
+              <label>
+                Last name
+                <input id="lastName" name="lastName" type="text" autocomplete="family-name" />
+              </label>
+              <label>
+                Mobile number
+                <input id="mobileNumber" name="mobileNumber" type="tel" autocomplete="tel" />
+              </label>
+              <label>
+                City
+                <input id="city" name="city" type="text" autocomplete="address-level2" />
+              </label>
+              <label>
+                State
+                <input id="state" name="state" type="text" autocomplete="address-level1" />
+              </label>
+              <label>
+                Zip
+                <input id="zip" name="zip" type="text" autocomplete="postal-code" />
+              </label>
+              <label class="full-span">
+                Address line 1
+                <input id="addressLine1" name="addressLine1" type="text" autocomplete="address-line1" />
+              </label>
+              <label class="full-span">
+                Address line 2
+                <input id="addressLine2" name="addressLine2" type="text" autocomplete="address-line2" />
+              </label>
+            </div>
+          </details>
+
+          <button class="primary-action" type="submit">Continue</button>
+        </form>
+      </section>
+
+      <section id="finderSection" class="finder-grid hidden" aria-labelledby="finder-title">
+        <div class="panel actions-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Step 2</p>
+              <h2 id="finder-title">Recommended stations</h2>
+            </div>
+            <button id="editProfileButton" class="ghost-button" type="button">Edit profile</button>
+          </div>
+
+          <p id="welcomeMessage" class="subtle"></p>
+
+          <div class="action-row">
+            <button id="useLocationButton" class="primary-action" type="button">
+              Use my location
+            </button>
+            <button id="browseButton" class="secondary-action" type="button">
+              Browse suggestions
+            </button>
+          </div>
+
+          <div id="message" class="message" role="status" aria-live="polite"></div>
+
+          <div class="map-card">
+            <div class="map-toolbar">
+              <div>
+                <p class="eyebrow">Map</p>
+                <h3 id="selectedStationTitle">Select a station</h3>
+              </div>
+              <a id="openGoogleMapsLink" class="map-link" href="#" target="_blank" rel="noreferrer">
+                Open Google Maps
+              </a>
+            </div>
+            <iframe
+              id="mapFrame"
+              title="Suggested EV charging station on Google Maps"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              src="about:blank"
+            ></iframe>
+          </div>
+        </div>
+
+        <aside class="panel station-panel" aria-labelledby="station-list-title">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">List</p>
+              <h2 id="station-list-title">Charging stations</h2>
+            </div>
+            <span id="resultCount" class="result-count">0</span>
+          </div>
+          <div id="stationList" class="station-list"></div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./config.js"></script>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
