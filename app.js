@@ -1,59 +1,8 @@
-const configuredApiBaseUrl = window.EV_CHARGER_CONFIG?.API_BASE_URL?.trim();
-const apiBaseUrl =
-  window.localStorage.getItem("evApiBaseUrl") ||
-  configuredApiBaseUrl ||
+const configuredSheetUrl = window.EV_CHARGER_CONFIG?.GOOGLE_SHEET_CSV_URL?.trim();
+const googleSheetCsvUrl =
+  window.localStorage.getItem("evGoogleSheetCsvUrl") ||
+  configuredSheetUrl ||
   "";
-
-const demoStations = [
-  {
-    sourceId: "demo-in-delhi-001",
-    country: "India",
-    address: "BEE EV Yatra Demo Charger, Connaught Place, New Delhi",
-    latitude: 28.6315,
-    longitude: 77.2167,
-    vehicleSupport: "Both 2W & 4W",
-    portCount: 6,
-    capacityKw: "60",
-    priceType: "Paid",
-    distanceMeters: null
-  },
-  {
-    sourceId: "demo-in-mumbai-001",
-    country: "India",
-    address: "Demo Fast DC Hub, Bandra Kurla Complex, Mumbai",
-    latitude: 19.0676,
-    longitude: 72.8676,
-    vehicleSupport: "4W",
-    portCount: 8,
-    capacityKw: "120",
-    priceType: "Paid",
-    distanceMeters: null
-  },
-  {
-    sourceId: "demo-in-bengaluru-001",
-    country: "India",
-    address: "Demo 2W Swap and EV Charging Hub, Indiranagar, Bengaluru",
-    latitude: 12.9719,
-    longitude: 77.6412,
-    vehicleSupport: "2W",
-    portCount: 12,
-    capacityKw: "7.4",
-    priceType: "Paid",
-    distanceMeters: null
-  },
-  {
-    sourceId: "demo-us-sf-001",
-    country: "United States",
-    address: "Demo Public EV Charger, Market Street, San Francisco",
-    latitude: 37.7749,
-    longitude: -122.4194,
-    vehicleSupport: "4W",
-    portCount: 10,
-    capacityKw: "150",
-    priceType: "Paid",
-    distanceMeters: null
-  }
-];
 
 const elements = {
   apiStatusDot: document.querySelector("#apiStatusDot"),
@@ -61,6 +10,7 @@ const elements = {
   onboardingSection: document.querySelector("#onboardingSection"),
   finderSection: document.querySelector("#finderSection"),
   profileForm: document.querySelector("#profileForm"),
+  profileMessage: document.querySelector("#profileMessage"),
   editProfileButton: document.querySelector("#editProfileButton"),
   useLocationButton: document.querySelector("#useLocationButton"),
   browseButton: document.querySelector("#browseButton"),
@@ -74,29 +24,118 @@ const elements = {
 };
 
 let currentProfile = JSON.parse(window.localStorage.getItem("evProfile") || "null");
+let stationCache = null;
 let stations = [];
 let selectedStation = null;
 
-async function apiFetch(path, options = {}) {
-  if (!apiBaseUrl) {
-    throw new Error("No backend API configured.");
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      value += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      row.push(value);
+      value = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") {
+        index += 1;
+      }
+      row.push(value);
+      if (row.some((cell) => cell.trim() !== "")) {
+        rows.push(row);
+      }
+      row = [];
+      value = "";
+    } else {
+      value += char;
+    }
   }
 
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
-    ...options
-  });
-
-  const body = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(body.message || `API request failed with ${response.status}`);
+  row.push(value);
+  if (row.some((cell) => cell.trim() !== "")) {
+    rows.push(row);
   }
 
-  return body;
+  return rows;
+}
+
+function normalizeHeader(header) {
+  return String(header || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function valueFromRow(row, aliases) {
+  for (const alias of aliases) {
+    const value = row[alias];
+    if (value != null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+  return "";
+}
+
+function numberOrNull(value) {
+  const number = Number(String(value ?? "").replace(/,/g, "").trim());
+  return Number.isFinite(number) ? number : null;
+}
+
+function normalizeStation(row, index) {
+  const latitude = numberOrNull(valueFromRow(row, ["latitude", "lat"]));
+  const longitude = numberOrNull(valueFromRow(row, ["longitude", "lng", "lon", "long"]));
+
+  return {
+    sourceId: valueFromRow(row, ["sourceid", "source_id", "id", "stationid"]) || `sheet-row-${index + 1}`,
+    country: valueFromRow(row, ["country"]),
+    address: valueFromRow(row, ["address", "stationaddress", "name", "title"]) || "Unknown address",
+    latitude,
+    longitude,
+    vehicleSupport: valueFromRow(row, ["vehiclesupport", "vehicle_support", "support", "vehicletype"]) || "Unknown",
+    portCount: numberOrNull(valueFromRow(row, ["portcount", "port_count", "ports", "chargingports", "numberofchargingports"])),
+    capacityKw: valueFromRow(row, ["capacitykw", "capacity_kw", "capacity", "chargingcapacity", "powerkw"]),
+    priceType: valueFromRow(row, ["pricetype", "price_type", "freeorpaid", "free_paid", "pricing"]) || "Unknown",
+    distanceMeters: null
+  };
+}
+
+async function loadSheetStations() {
+  if (!googleSheetCsvUrl) {
+    throw new Error("Google Sheet CSV URL is missing. Add GOOGLE_SHEET_CSV_URL in config.js.");
+  }
+
+  if (stationCache) {
+    return stationCache;
+  }
+
+  const response = await fetch(googleSheetCsvUrl, { cache: "no-store" });
+  const text = await response.text();
+
+  if (!response.ok || text.trim().startsWith("<!DOCTYPE html") || text.includes("document-root")) {
+    throw new Error("Google Sheet did not return CSV. Publish/share the sheet so anyone with the link can view it.");
+  }
+
+  const rows = parseCsv(text);
+  const headers = rows.shift()?.map(normalizeHeader) || [];
+  const rawStations = rows.map((cells) =>
+    Object.fromEntries(headers.map((header, index) => [header, cells[index] || ""]))
+  );
+
+  stationCache = rawStations
+    .map(normalizeStation)
+    .filter((station) => Number.isFinite(station.latitude) && Number.isFinite(station.longitude));
+
+  return stationCache;
 }
 
 function distanceMeters(aLat, aLng, bLat, bLng) {
@@ -111,11 +150,12 @@ function distanceMeters(aLat, aLng, bLat, bLng) {
   return Math.round(2 * earthRadiusMeters * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-function localRecommendations({ country, lat, lng, limit = 8 }) {
+async function getRecommendations({ country, lat, lng, limit = 8 }) {
+  const allStations = await loadSheetStations();
   const countryMatches = country
-    ? demoStations.filter((station) => station.country.toLowerCase().includes(country.toLowerCase()))
-    : demoStations;
-  const candidates = countryMatches.length ? countryMatches : demoStations;
+    ? allStations.filter((station) => String(station.country || "").toLowerCase().includes(country.toLowerCase()))
+    : allStations;
+  const candidates = countryMatches.length ? countryMatches : allStations;
 
   if (Number.isFinite(lat) && Number.isFinite(lng)) {
     return candidates
@@ -133,60 +173,38 @@ function localRecommendations({ country, lat, lng, limit = 8 }) {
     .slice(0, limit);
 }
 
-async function saveProfile(payload) {
-  try {
-    const response = await apiFetch("/users/onboarding", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
-    return response.profile;
-  } catch {
-    return {
-      email: String(payload.email || "").trim().toLowerCase(),
-      firstName: String(payload.firstName || "").trim(),
-      country: String(payload.country || "").trim(),
-      lastName: payload.lastName || null,
-      vehicleKind: payload.vehicleKind || "Unknown",
-      mobileNumber: payload.mobileNumber || null,
-      addressLine1: payload.addressLine1 || null,
-      addressLine2: payload.addressLine2 || null,
-      state: payload.state || null,
-      city: payload.city || null,
-      zip: payload.zip || null,
-      lastLatitude: null,
-      lastLongitude: null
-    };
-  }
+function saveProfile(payload) {
+  return {
+    email: String(payload.email || "").trim().toLowerCase(),
+    firstName: String(payload.firstName || "").trim(),
+    country: String(payload.country || "").trim(),
+    lastName: payload.lastName || null,
+    vehicleKind: payload.vehicleKind || "Unknown",
+    mobileNumber: payload.mobileNumber || null,
+    addressLine1: payload.addressLine1 || null,
+    addressLine2: payload.addressLine2 || null,
+    state: payload.state || null,
+    city: payload.city || null,
+    zip: payload.zip || null,
+    lastLatitude: null,
+    lastLongitude: null
+  };
 }
 
-async function getRecommendations({ country, lat, lng, limit = 8 }) {
-  const params = new URLSearchParams({
-    country,
-    limit: String(limit)
-  });
-
-  if (Number.isFinite(lat) && Number.isFinite(lng)) {
-    params.set("lat", String(lat));
-    params.set("lng", String(lng));
-  }
-
-  try {
-    const response = await apiFetch(`/recommendations?${params.toString()}`);
-    return response.stations || [];
-  } catch {
-    return localRecommendations({ country, lat, lng, limit });
-  }
-}
-
-function setApiStatus(online) {
+function setApiStatus(online, label = null) {
   elements.apiStatusDot.classList.toggle("online", online);
   elements.apiStatusDot.classList.toggle("offline", !online);
-  elements.apiStatusText.textContent = online ? "API online" : "API offline";
+  elements.apiStatusText.textContent = label || (online ? "Sheet online" : "Sheet unavailable");
 }
 
 function setMessage(text, isError = false) {
   elements.message.textContent = text || "";
   elements.message.classList.toggle("error", isError);
+}
+
+function setProfileMessage(text, isError = false) {
+  elements.profileMessage.textContent = text || "";
+  elements.profileMessage.classList.toggle("error", isError);
 }
 
 function stationDistanceText(station) {
@@ -233,9 +251,9 @@ function renderStationList() {
         <span><strong>Distance:</strong> ${stationDistanceText(station)}</span>
         <span><strong>Vehicle:</strong> ${station.vehicleSupport}</span>
         <span><strong>Ports:</strong> ${station.portCount ?? "Unknown"}</span>
-        <span><strong>Power:</strong> ${station.capacityKw ?? "Unknown"} kW</span>
+        <span><strong>Power:</strong> ${station.capacityKw || "Unknown"} kW</span>
         <span><strong>Price:</strong> ${station.priceType}</span>
-        <span><strong>Country:</strong> ${station.country ?? "Unknown"}</span>
+        <span><strong>Country:</strong> ${station.country || "Unknown"}</span>
       </div>
     `;
     card.addEventListener("click", () => updateMap(station));
@@ -293,16 +311,6 @@ async function useCurrentLocation() {
     async (position) => {
       try {
         const { latitude, longitude } = position.coords;
-
-        await apiFetch("/users/location", {
-          method: "POST",
-          body: JSON.stringify({
-            email: currentProfile.email,
-            lat: latitude,
-            lng: longitude
-          })
-        }).catch(() => null);
-
         stations = await getRecommendations({
           country: currentProfile.country,
           lat: latitude,
@@ -336,14 +344,15 @@ async function useCurrentLocation() {
 elements.profileForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   setMessage("");
+  setProfileMessage("");
 
   try {
-    currentProfile = await saveProfile(profilePayloadFromForm());
+    currentProfile = saveProfile(profilePayloadFromForm());
     window.localStorage.setItem("evProfile", JSON.stringify(currentProfile));
     showFinder();
     await loadCountrySuggestions();
   } catch (error) {
-    setMessage(error.message, true);
+    setProfileMessage(error.message, true);
   }
 });
 
@@ -364,11 +373,11 @@ elements.useLocationButton.addEventListener("click", useCurrentLocation);
 
 async function boot() {
   try {
-    await apiFetch("/health");
-    setApiStatus(true);
-  } catch {
-    setApiStatus(false);
-    elements.apiStatusText.textContent = "Demo mode";
+    const loadedStations = await loadSheetStations();
+    setApiStatus(true, `${loadedStations.length} sheet rows`);
+  } catch (error) {
+    setApiStatus(false, "Sheet unavailable");
+    setProfileMessage(error.message, true);
   }
 
   fillProfileForm(currentProfile);

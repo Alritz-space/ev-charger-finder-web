@@ -14,7 +14,7 @@ Responsive browser version of the EV Charger Finder MVP.
 
 ## Run locally
 
-The public web app can run in browser-only demo mode without a backend.
+This web app reads live station data from a published Google Sheet CSV URL.
 
 Start the web app:
 
@@ -23,40 +23,39 @@ cd web
 npm run start
 ```
 
+Confirm `web/config.js` has your published Sheet CSV URL:
+
+```js
+window.EV_CHARGER_CONFIG = {
+  GOOGLE_SHEET_CSV_URL: "https://docs.google.com/spreadsheets/d/e/.../pub?gid=0&single=true&output=csv"
+};
+```
+
 Open:
 
 ```text
 http://localhost:5174
 ```
 
-To test with the local demo API, start the backend:
+If `GOOGLE_SHEET_CSV_URL` is empty or the Sheet is not public, the app will not show charging-station results.
 
-```bash
-cd backend
-npm run dev:demo
-```
+## Configure Google Sheet URL
 
-Then edit `web/config.js`:
+Edit `config.js` when your published Sheet URL changes:
 
 ```js
 window.EV_CHARGER_CONFIG = {
-  API_BASE_URL: "http://localhost:3000"
-};
-```
-
-If `API_BASE_URL` is empty, the app uses browser-only demo stations.
-
-## Configure backend URL
-
-Edit `config.js` when your backend is hosted somewhere else:
-
-```js
-window.EV_CHARGER_CONFIG = {
-  API_BASE_URL: "https://your-backend.example.com"
+  GOOGLE_SHEET_CSV_URL: "https://docs.google.com/spreadsheets/d/e/.../pub?gid=0&single=true&output=csv"
 };
 ```
 
 Do not put secrets in this file. It is sent to every browser user.
+
+Expected Sheet columns:
+
+```text
+sourceId,country,address,latitude,longitude,vehicleSupport,portCount,capacityKw,priceType
+```
 
 ## Publish on GitHub Pages
 
@@ -68,6 +67,7 @@ Upload these files to the root of a GitHub repository:
 - `config.js`
 - `package.json`
 - `README.md`
+- `DATABASE_UPDATE.md`
 
 Then open repository **Settings > Pages**, choose **Deploy from a branch**,
 select `main` and `/root`, then click **Save**.

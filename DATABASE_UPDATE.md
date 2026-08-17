@@ -1,19 +1,27 @@
 # How to update the EV charging-station database
 
-The public web app can run in browser-only demo mode, but live station data needs the backend/database.
+The public web app reads station data from a published Google Sheet CSV URL configured in `config.js`.
 
-## Demo mode
+Expected Sheet columns:
 
-The public GitHub Pages version uses demo stations inside `app.js` when no backend API is configured.
+```text
+sourceId,country,address,latitude,longitude,vehicleSupport,portCount,capacityKw,priceType
+```
 
-To change demo stations:
+To update station data:
 
-1. Open `app.js`.
-2. Find `demoStations`.
-3. Add/edit station records.
-4. Upload the updated `app.js` to GitHub.
+1. Open your Google Sheet.
+2. Add/edit station rows under the header row.
+3. Keep the Sheet published to web as CSV.
+4. Refresh the GitHub Pages website.
 
-## Live database mode
+Your current CSV URL:
+
+```text
+https://docs.google.com/spreadsheets/d/e/2PACX-1vSO7uiuMy5HgadxV_7xisR_PL58tUbJ4bXEDDFN0xReNb38tt3kpkgzp6wwkC1tpryT5Rnf2sOPku7C/pub?gid=0&single=true&output=csv
+```
+
+## Optional large database mode
 
 Use the backend project for real charging-station updates.
 
@@ -66,17 +74,9 @@ npm run refresh:france
 npm run refresh:india
 ```
 
-### 6. Host backend and update web config
+### 6. Export or host data
 
-After hosting the backend, update `config.js`:
-
-```js
-window.EV_CHARGER_CONFIG = {
-  API_BASE_URL: "https://your-hosted-backend.example.com"
-};
-```
-
-Then upload the updated `config.js` to GitHub.
+For the current Google Sheet approach, export/import curated rows into the Sheet.
 
 ## Weekly updates
 

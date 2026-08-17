@@ -1,6 +1,5 @@
 window.EV_CHARGER_CONFIG = {
-  // Optional. For local development, use "http://localhost:3000".
-  // For a hosted backend, replace this with your public API URL.
-  // Leave empty to run the public website in browser-only demo mode.
-  API_BASE_URL: ""
+  // Published Google Sheet CSV URL for live station data.
+  GOOGLE_SHEET_CSV_URL:
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vSO7uiuMy5HgadxV_7xisR_PL58tUbJ4bXEDDFN0xReNb38tt3kpkgzp6wwkC1tpryT5Rnf2sOPku7C/pub?gid=0&single=true&output=csv"
 };
