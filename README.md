@@ -13,18 +13,13 @@ Responsive browser version of the EV Charger Finder MVP.
 
 ## Run locally
 
-Start the demo API:
-
-```bash
-cd ../backend
-npm run dev:demo
-```
+The public web app can run in browser-only demo mode without a backend.
 
 Start the web app:
 
 ```bash
-cd ../web
-python3 -m http.server 5174
+cd web
+npm run start
 ```
 
 Open:
@@ -33,7 +28,22 @@ Open:
 http://localhost:5174
 ```
 
-The app uses `http://localhost:3000` for the backend when opened locally.
+To test with the local demo API, start the backend:
+
+```bash
+cd backend
+npm run dev:demo
+```
+
+Then edit `web/config.js`:
+
+```js
+window.EV_CHARGER_CONFIG = {
+  API_BASE_URL: "http://localhost:3000"
+};
+```
+
+If `API_BASE_URL` is empty, the app uses browser-only demo stations.
 
 ## Configure backend URL
 
@@ -46,3 +56,17 @@ window.EV_CHARGER_CONFIG = {
 ```
 
 Do not put secrets in this file. It is sent to every browser user.
+
+## Publish on GitHub Pages
+
+Upload these files to the root of a GitHub repository:
+
+- `index.html`
+- `styles.css`
+- `app.js`
+- `config.js`
+- `package.json`
+- `README.md`
+
+Then open repository **Settings > Pages**, choose **Deploy from a branch**,
+select `main` and `/root`, then click **Save**.

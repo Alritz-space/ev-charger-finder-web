@@ -2,7 +2,58 @@ const configuredApiBaseUrl = window.EV_CHARGER_CONFIG?.API_BASE_URL?.trim();
 const apiBaseUrl =
   window.localStorage.getItem("evApiBaseUrl") ||
   configuredApiBaseUrl ||
-  "http://localhost:3000";
+  "";
+
+const demoStations = [
+  {
+    sourceId: "demo-in-delhi-001",
+    country: "India",
+    address: "BEE EV Yatra Demo Charger, Connaught Place, New Delhi",
+    latitude: 28.6315,
+    longitude: 77.2167,
+    vehicleSupport: "Both 2W & 4W",
+    portCount: 6,
+    capacityKw: "60",
+    priceType: "Paid",
+    distanceMeters: null
+  },
+  {
+    sourceId: "demo-in-mumbai-001",
+    country: "India",
+    address: "Demo Fast DC Hub, Bandra Kurla Complex, Mumbai",
+    latitude: 19.0676,
+    longitude: 72.8676,
+    vehicleSupport: "4W",
+    portCount: 8,
+    capacityKw: "120",
+    priceType: "Paid",
+    distanceMeters: null
+  },
+  {
+    sourceId: "demo-in-bengaluru-001",
+    country: "India",
+    address: "Demo 2W Swap and EV Charging Hub, Indiranagar, Bengaluru",
+    latitude: 12.9719,
+    longitude: 77.6412,
+    vehicleSupport: "2W",
+    portCount: 12,
+    capacityKw: "7.4",
+    priceType: "Paid",
+    distanceMeters: null
+  },
+  {
+    sourceId: "demo-us-sf-001",
+    country: "United States",
+    address: "Demo Public EV Charger, Market Street, San Francisco",
+    latitude: 37.7749,
+    longitude: -122.4194,
+    vehicleSupport: "4W",
+    portCount: 10,
+    capacityKw: "150",
+    priceType: "Paid",
+    distanceMeters: null
+  }
+];
 
 const elements = {
   apiStatusDot: document.querySelector("#apiStatusDot"),
@@ -27,6 +78,10 @@ let stations = [];
 let selectedStation = null;
 
 async function apiFetch(path, options = {}) {
+  if (!apiBaseUrl) {
+    throw new Error("No backend API configured.");
+  }
+
   const response = await fetch(`${apiBaseUrl}${path}`, {
     headers: {
       "Content-Type": "application/json",
@@ -42,6 +97,85 @@ async function apiFetch(path, options = {}) {
   }
 
   return body;
+}
+
+function distanceMeters(aLat, aLng, bLat, bLng) {
+  const earthRadiusMeters = 6371000;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const lat1 = (aLat * Math.PI) / 180;
+  const lat2 = (bLat * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return Math.round(2 * earthRadiusMeters * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+function localRecommendations({ country, lat, lng, limit = 8 }) {
+  const countryMatches = country
+    ? demoStations.filter((station) => station.country.toLowerCase().includes(country.toLowerCase()))
+    : demoStations;
+  const candidates = countryMatches.length ? countryMatches : demoStations;
+
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return candidates
+      .map((station) => ({
+        ...station,
+        distanceMeters: distanceMeters(lat, lng, station.latitude, station.longitude)
+      }))
+      .sort((a, b) => a.distanceMeters - b.distanceMeters)
+      .slice(0, limit);
+  }
+
+  return candidates
+    .map((station) => ({ ...station, distanceMeters: null }))
+    .sort((a, b) => (b.portCount || 0) - (a.portCount || 0))
+    .slice(0, limit);
+}
+
+async function saveProfile(payload) {
+  try {
+    const response = await apiFetch("/users/onboarding", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    return response.profile;
+  } catch {
+    return {
+      email: String(payload.email || "").trim().toLowerCase(),
+      firstName: String(payload.firstName || "").trim(),
+      country: String(payload.country || "").trim(),
+      lastName: payload.lastName || null,
+      vehicleKind: payload.vehicleKind || "Unknown",
+      mobileNumber: payload.mobileNumber || null,
+      addressLine1: payload.addressLine1 || null,
+      addressLine2: payload.addressLine2 || null,
+      state: payload.state || null,
+      city: payload.city || null,
+      zip: payload.zip || null,
+      lastLatitude: null,
+      lastLongitude: null
+    };
+  }
+}
+
+async function getRecommendations({ country, lat, lng, limit = 8 }) {
+  const params = new URLSearchParams({
+    country,
+    limit: String(limit)
+  });
+
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    params.set("lat", String(lat));
+    params.set("lng", String(lng));
+  }
+
+  try {
+    const response = await apiFetch(`/recommendations?${params.toString()}`);
+    return response.stations || [];
+  } catch {
+    return localRecommendations({ country, lat, lng, limit });
+  }
 }
 
 function setApiStatus(online) {
@@ -139,9 +273,7 @@ function profilePayloadFromForm() {
 }
 
 async function loadCountrySuggestions(message = null) {
-  const country = encodeURIComponent(currentProfile.country);
-  const response = await apiFetch(`/recommendations?country=${country}&limit=8`);
-  stations = response.stations || [];
+  stations = await getRecommendations({ country: currentProfile.country, limit: 8 });
   setMessage(message || `Showing suggestions based on ${currentProfile.country}.`);
   renderStationList();
   if (stations[0]) {
@@ -171,14 +303,12 @@ async function useCurrentLocation() {
           })
         }).catch(() => null);
 
-        const params = new URLSearchParams({
+        stations = await getRecommendations({
           country: currentProfile.country,
-          lat: String(latitude),
-          lng: String(longitude),
-          limit: "8"
+          lat: latitude,
+          lng: longitude,
+          limit: 8
         });
-        const response = await apiFetch(`/recommendations?${params.toString()}`);
-        stations = response.stations || [];
         setMessage("Showing nearest stations from your current location.");
         renderStationList();
         if (stations[0]) {
@@ -208,11 +338,7 @@ elements.profileForm.addEventListener("submit", async (event) => {
   setMessage("");
 
   try {
-    const response = await apiFetch("/users/onboarding", {
-      method: "POST",
-      body: JSON.stringify(profilePayloadFromForm())
-    });
-    currentProfile = response.profile;
+    currentProfile = await saveProfile(profilePayloadFromForm());
     window.localStorage.setItem("evProfile", JSON.stringify(currentProfile));
     showFinder();
     await loadCountrySuggestions();
@@ -242,6 +368,7 @@ async function boot() {
     setApiStatus(true);
   } catch {
     setApiStatus(false);
+    elements.apiStatusText.textContent = "Demo mode";
   }
 
   fillProfileForm(currentProfile);
