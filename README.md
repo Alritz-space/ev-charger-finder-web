@@ -5,6 +5,7 @@ Responsive browser version of the EV Charger Finder MVP.
 ## What is included
 
 - Email, first name, and country onboarding.
+- Country selection using a dropdown list.
 - Optional vehicle and address profile fields.
 - Current-location search using browser geolocation.
 - Country-based fallback suggestions.
