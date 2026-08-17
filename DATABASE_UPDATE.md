@@ -15,6 +15,10 @@ To update station data:
 3. Keep the Sheet published to web as CSV.
 4. Refresh the GitHub Pages website.
 
+The onboarding country dropdown is generated automatically from the unique
+values in the `country` column. If a country does not appear, make sure at least
+one station row uses that country name and wait for the published CSV to refresh.
+
 Your current CSV URL:
 
 ```text

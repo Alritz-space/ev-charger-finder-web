@@ -11,6 +11,7 @@ const elements = {
   finderSection: document.querySelector("#finderSection"),
   profileForm: document.querySelector("#profileForm"),
   profileMessage: document.querySelector("#profileMessage"),
+  countrySelect: document.querySelector("#country"),
   editProfileButton: document.querySelector("#editProfileButton"),
   useLocationButton: document.querySelector("#useLocationButton"),
   browseButton: document.querySelector("#browseButton"),
@@ -27,6 +28,24 @@ let currentProfile = JSON.parse(window.localStorage.getItem("evProfile") || "nul
 let stationCache = null;
 let stations = [];
 let selectedStation = null;
+
+const fallbackCountries = [
+  "India",
+  "United States",
+  "Canada",
+  "United Kingdom",
+  "France",
+  "Germany",
+  "Netherlands",
+  "Norway",
+  "Sweden",
+  "China",
+  "Japan",
+  "Australia",
+  "Brazil",
+  "United Arab Emirates",
+  "Singapore"
+];
 
 function parseCsv(text) {
   const rows = [];
@@ -136,6 +155,49 @@ async function loadSheetStations() {
     .filter((station) => Number.isFinite(station.latitude) && Number.isFinite(station.longitude));
 
   return stationCache;
+}
+
+function uniqueCountriesFromStations(loadedStations) {
+  const countriesByKey = new Map();
+
+  for (const station of loadedStations) {
+    const country = String(station.country || "").trim();
+    if (!country) {
+      continue;
+    }
+
+    const key = country.toLowerCase();
+    if (!countriesByKey.has(key)) {
+      countriesByKey.set(key, country);
+    }
+  }
+
+  return Array.from(countriesByKey.values()).sort((a, b) => a.localeCompare(b));
+}
+
+function renderCountryDropdown(countryNames, selectedCountry = "") {
+  const selectedValue = String(selectedCountry || "").trim();
+  const countries = [...new Set(countryNames.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+
+  if (selectedValue && !countries.some((country) => country.toLowerCase() === selectedValue.toLowerCase())) {
+    countries.unshift(selectedValue);
+  }
+
+  elements.countrySelect.innerHTML = "";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = countries.length ? "Select country" : "No countries found";
+  elements.countrySelect.append(placeholder);
+
+  for (const country of countries) {
+    const option = document.createElement("option");
+    option.value = country;
+    option.textContent = country;
+    elements.countrySelect.append(option);
+  }
+
+  elements.countrySelect.value = selectedValue || "";
 }
 
 function distanceMeters(aLat, aLng, bLat, bLng) {
@@ -372,9 +434,13 @@ elements.browseButton.addEventListener("click", async () => {
 elements.useLocationButton.addEventListener("click", useCurrentLocation);
 
 async function boot() {
+  const savedCountry = currentProfile?.country || "";
+  renderCountryDropdown(fallbackCountries, savedCountry);
+
   try {
     const loadedStations = await loadSheetStations();
     setApiStatus(true, `${loadedStations.length} sheet rows`);
+    renderCountryDropdown(uniqueCountriesFromStations(loadedStations), elements.countrySelect.value || savedCountry);
   } catch (error) {
     setApiStatus(false, "Sheet unavailable");
     setProfileMessage(error.message, true);
